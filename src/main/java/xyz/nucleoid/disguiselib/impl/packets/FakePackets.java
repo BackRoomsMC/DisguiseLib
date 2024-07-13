@@ -4,7 +4,6 @@ import net.minecraft.block.Block;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityType;
 import net.minecraft.entity.FallingBlockEntity;
-import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.network.packet.Packet;
 import net.minecraft.network.packet.s2c.play.EntitySpawnS2CPacket;
 import net.minecraft.util.math.MathHelper;
@@ -23,20 +22,20 @@ public class FakePackets {
     public static Packet<?> universalSpawnPacket(Entity entity) {
         // fixme - disguising non-living kicks you (just upon disguise)
         Entity disguise = ((EntityDisguise) entity).getDisguiseEntity();
-        if(disguise == null) {
+        if (disguise == null) {
             disguise = entity;
         }
 
         try {
-            Packet<?> packet = disguise.createSpawnPacket();
+            Packet<?> packet = createSpawnPacket(disguise);
 
-            if(packet instanceof EntitySpawnS2CPacket) {
+            if (packet instanceof EntitySpawnS2CPacket) {
                 packet = fakeMobSpawnS2CPacket(entity);
             }
 
             return packet;
         } catch (Throwable e) {
-            return entity.createSpawnPacket();
+            return createSpawnPacket(entity);
         }
     }
 
@@ -44,12 +43,11 @@ public class FakePackets {
      * Constructs a fake {@link EntitySpawnS2CPacket} for the given entity.
      *
      * @param entity entity that requires fake packet
-     *
      * @return fake {@link EntitySpawnS2CPacket}
      */
     public static EntitySpawnS2CPacket fakeMobSpawnS2CPacket(Entity entity) {
         EntityDisguise disguise = (EntityDisguise) entity;
-        EntitySpawnS2CPacket packet = new EntitySpawnS2CPacket(disguise.getDisguiseEntity());
+        EntitySpawnS2CPacket packet = createSpawnPacket(disguise.getDisguiseEntity());
 
         EntitySpawnS2CPacketAccessor accessor = (EntitySpawnS2CPacketAccessor) packet;
         accessor.setEntityId(entity.getId());
@@ -62,7 +60,7 @@ public class FakePackets {
         accessor.setY(entity.getY());
         accessor.setZ(entity.getZ());
 
-        accessor.setYaw((byte) ((int) (entity.getY() * 256.0F / 360.0F)));
+        accessor.setYaw((byte) ((int) (entity.getYaw() * 256.0F / 360.0F)));
         accessor.setHeadYaw((byte) ((int) (entity.getHeadYaw() * 256.0F / 360.0F)));
         accessor.setPitch((byte) ((int) (entity.getPitch() * 256.0F / 360.0F)));
 
@@ -82,14 +80,13 @@ public class FakePackets {
      * Constructs a fake {@link EntitySpawnS2CPacket} for the given entity.
      *
      * @param entity entity that requires fake packet
-     *
      * @return fake {@link EntitySpawnS2CPacket}
      */
     public static EntitySpawnS2CPacket fakeEntitySpawnS2CPacket(Entity entity) {
-        EntitySpawnS2CPacket packet = new EntitySpawnS2CPacket(entity);
+        EntitySpawnS2CPacket packet = createSpawnPacket(entity);
         EntityDisguise fake = (EntityDisguise) entity;
         ((EntitySpawnS2CPacketAccessor) packet).setEntityType(fake.getDisguiseType());
-        if(fake.getDisguiseType() == EntityType.FALLING_BLOCK && fake.getDisguiseEntity() instanceof FallingBlockEntity) {
+        if (fake.getDisguiseType() == EntityType.FALLING_BLOCK && fake.getDisguiseEntity() instanceof FallingBlockEntity) {
             ((EntitySpawnS2CPacketAccessor) packet).setEntityData(
                     Block.getRawIdFromState(
                             ((FallingBlockEntity) fake.getDisguiseEntity()).getBlockState()
@@ -98,5 +95,19 @@ public class FakePackets {
         }
 
         return packet;
+    }
+
+    public static EntitySpawnS2CPacket createSpawnPacket(Entity entity) {
+        return new EntitySpawnS2CPacket(entity.getId(),
+                entity.getUuid(),
+                entity.getX(),
+                entity.getY(),
+                entity.getZ(),
+                entity.getPitch(),
+                entity.getYaw(),
+                entity.getType(),
+                0,
+                entity.getVelocity(),
+                entity.getHeadYaw());
     }
 }

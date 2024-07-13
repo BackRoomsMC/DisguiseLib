@@ -35,7 +35,8 @@ import static xyz.nucleoid.disguiselib.impl.DisguiseLib.DISGUISE_TEAM;
 
 @Mixin(ServerPlayNetworkHandler.class)
 public abstract class ServerPlayNetworkHandlerMixin_Disguiser extends ServerCommonNetworkHandler implements ExtendedHandler {
-    @Shadow public ServerPlayerEntity player;
+    @Shadow
+    public ServerPlayerEntity player;
 
     @Unique
     private final Set<Packet<?>> disguiselib$q = new HashSet<>();
@@ -48,7 +49,7 @@ public abstract class ServerPlayNetworkHandlerMixin_Disguiser extends ServerComm
         super(server, connection, clientData);
     }
 
-    public void disguiselib$transformPacket(Packet<ClientPlayPacketListener> packet, Runnable remove, Consumer<Packet<ClientPlayPacketListener>> add) {
+    public void disguiselib$transformPacket(Packet<? super ClientPlayPacketListener> packet, Runnable remove, Consumer<Packet<ClientPlayPacketListener>> add) {
         World world = this.player.getEntityWorld();
         Entity entity = null;
         if (packet instanceof EntitySpawnS2CPacket) {
@@ -56,30 +57,30 @@ public abstract class ServerPlayNetworkHandlerMixin_Disguiser extends ServerComm
         } else if (packet instanceof EntitiesDestroyS2CPacket && !((EntitiesDestroyS2CPacketAccessor) packet).getEntityIds().isEmpty() && ((EntitiesDestroyS2CPacketAccessor) packet).getEntityIds().getInt(0) == this.player.getId()) {
             remove.run();
             return;
-        } else if(packet instanceof EntityTrackerUpdateS2CPacket) {
+        } else if (packet instanceof EntityTrackerUpdateS2CPacket) {
             // an ugly fix for #6
             int entityId = ((EntityTrackerUpdateS2CPacketAccessor) packet).getEntityId();
-            if(entityId == this.player.getId() && ((EntityDisguise) this.player).isDisguised()) {
+            if (entityId == this.player.getId() && ((EntityDisguise) this.player).isDisguised()) {
                 List<DataTracker.SerializedEntry<?>> trackedValues = this.player.getDataTracker().getChangedEntries();
-                if(((EntityDisguise) this.player).getDisguiseType() != EntityType.PLAYER) {
+                if (((EntityDisguise) this.player).getDisguiseType() != EntityType.PLAYER) {
                     Byte flags = this.player.getDataTracker().get(EntityAccessor.getFLAGS());
 
                     boolean removed = trackedValues.removeIf(entry -> entry.value().equals(flags));
-                    if(removed) {
+                    if (removed) {
                         DataTracker.SerializedEntry<Byte> fakeInvisibleFlag = DataTracker.SerializedEntry.of(EntityAccessor.getFLAGS(), (byte) (flags | 1 << 5));
                         trackedValues.add(fakeInvisibleFlag);
                     }
                 }
                 ((EntityTrackerUpdateS2CPacketAccessor) packet).setTrackedValues(trackedValues);
-            } else if(!((EntityDisguise) this.player).hasTrueSight()) {
+            } else if (!((EntityDisguise) this.player).hasTrueSight()) {
                 // Fixing "wrong data" client issue (#1)
                 // Just prevents the client from spamming the log
                 Entity original = world.getEntityById(entityId);
 
                 // Only change the content if entity is disguised
-                if(original != null && ((EntityDisguise) original).isDisguised()) {
+                if (original != null && ((EntityDisguise) original).isDisguised()) {
                     Entity disguised = ((EntityDisguise) original).getDisguiseEntity();
-                    if(disguised != null) {
+                    if (disguised != null) {
                         ((DisguiseUtils) original).updateTrackedData();
                         List<DataTracker.SerializedEntry<?>> trackedValues = disguised.getDataTracker().getChangedEntries();
                         ((EntityTrackerUpdateS2CPacketAccessor) packet).setTrackedValues(trackedValues);
@@ -87,30 +88,30 @@ public abstract class ServerPlayNetworkHandlerMixin_Disguiser extends ServerComm
                 }
             }
             return;
-        } else if(packet instanceof EntityAttributesS2CPacket && !((EntityDisguise) this.player).hasTrueSight()) {
+        } else if (packet instanceof EntityAttributesS2CPacket && !((EntityDisguise) this.player).hasTrueSight()) {
             // Fixing #2
             // Another client spam
             // Entity attributes "cannot" be sent for non-living entities
             Entity original = world.getEntityById(((EntityAttributesS2CPacketAccessor) packet).getEntityId());
             EntityDisguise entityDisguise = (EntityDisguise) original;
 
-            if(original != null && entityDisguise.isDisguised() && !((DisguiseUtils) original).disguiseAlive()) {
+            if (original != null && entityDisguise.isDisguised() && !((DisguiseUtils) original).disguiseAlive()) {
                 remove.run();
                 return;
             }
-        } else if(packet instanceof EntityVelocityUpdateS2CPacket velocityPacket) {
-            int id = velocityPacket.getId();
-            if(id != this.player.getId()) {
+        } else if (packet instanceof EntityVelocityUpdateS2CPacket velocityPacket) {
+            int id = velocityPacket.getEntityId();
+            if (id != this.player.getId()) {
 
                 Entity entity1 = world.getEntityById(id);
-                if(entity1 != null && ((EntityDisguise) entity1).isDisguised()) {
+                if (entity1 != null && ((EntityDisguise) entity1).isDisguised()) {
                     // Cancels some client predictions
                     remove.run();
                 }
             }
         }
 
-        if(entity != null) {
+        if (entity != null) {
             disguiselib$sendFakePacket(entity, remove, add);
         }
     }
@@ -127,8 +128,8 @@ public abstract class ServerPlayNetworkHandlerMixin_Disguiser extends ServerComm
         Entity disguiseEntity = disguise.getDisguiseEntity();
 
         Packet<?> spawnPacket;
-        if(((EntityDisguise) this.player).hasTrueSight() || !disguise.isDisguised())
-            spawnPacket = entity.createSpawnPacket();
+        if (((EntityDisguise) this.player).hasTrueSight() || !disguise.isDisguised())
+            spawnPacket = FakePackets.createSpawnPacket(entity);
         else
             spawnPacket = FakePackets.universalSpawnPacket(entity);
 
@@ -160,7 +161,7 @@ public abstract class ServerPlayNetworkHandlerMixin_Disguiser extends ServerComm
                 }
             }
             remove.run();
-        } else if(disguise.isDisguised()) {
+        } else if (disguise.isDisguised()) {
             //this.player.getX()
             //ArmorStandEntity fakeStand = new ArmorStandEntity(this.player.world, );
             //fakeStand.startRiding(fakeStand, true);
@@ -172,18 +173,18 @@ public abstract class ServerPlayNetworkHandlerMixin_Disguiser extends ServerComm
 
 
     @Inject(
-        method = "onPlayerMove(Lnet/minecraft/network/packet/c2s/play/PlayerMoveC2SPacket;)V",
-        at = @At(
-                value = "INVOKE",
-                target = "Lnet/minecraft/network/NetworkThreadUtils;forceMainThread(Lnet/minecraft/network/packet/Packet;Lnet/minecraft/network/listener/PacketListener;Lnet/minecraft/server/world/ServerWorld;)V",
-                shift = At.Shift.AFTER
-        )
+            method = "onPlayerMove(Lnet/minecraft/network/packet/c2s/play/PlayerMoveC2SPacket;)V",
+            at = @At(
+                    value = "INVOKE",
+                    target = "Lnet/minecraft/network/NetworkThreadUtils;forceMainThread(Lnet/minecraft/network/packet/Packet;Lnet/minecraft/network/listener/PacketListener;Lnet/minecraft/server/world/ServerWorld;)V",
+                    shift = At.Shift.AFTER
+            )
     )
     private void disguiselib$moveDisguiseEntity(PlayerMoveC2SPacket packet, CallbackInfo ci) {
-        if(((EntityDisguise) this.player).isDisguised() && ((EntityDisguise) this.player).getDisguiseType() != EntityType.PLAYER) {
+        if (((EntityDisguise) this.player).isDisguised() && ((EntityDisguise) this.player).getDisguiseType() != EntityType.PLAYER) {
             // Moving disguise for the disguised player
             EntityPositionS2CPacket s2CPacket = new EntityPositionS2CPacket(this.player);
-            EntitySetHeadYawS2CPacket headYawS2CPacket = new EntitySetHeadYawS2CPacket(this.player, (byte)((int)(this.player.getHeadYaw() * 256.0F / 360.0F)));
+            EntitySetHeadYawS2CPacket headYawS2CPacket = new EntitySetHeadYawS2CPacket(this.player, (byte) ((int) (this.player.getHeadYaw() * 256.0F / 360.0F)));
 
             //noinspection ConstantConditions
             ((EntityPositionS2CPacketAccessor) s2CPacket).setEntityId(((EntityDisguise) this.player).getDisguiseEntity().getId());
@@ -197,11 +198,12 @@ public abstract class ServerPlayNetworkHandlerMixin_Disguiser extends ServerComm
 
     @Inject(method = "onPlayerMove(Lnet/minecraft/network/packet/c2s/play/PlayerMoveC2SPacket;)V", at = @At("RETURN"))
     private void removeFromTablist(PlayerMoveC2SPacket packet, CallbackInfo ci) {
-        if(!this.disguiselib$q.isEmpty() && --this.disguiselib$qTimer <= 0) {
+        if (!this.disguiselib$q.isEmpty() && --this.disguiselib$qTimer <= 0) {
             // fixme - non-living disguised as player still not showing up
             // fixme - player sometimes gets removed from tablist :(
             this.disguiselib$q.forEach(this::sendPacket);
-            this.disguiselib$q.clear();}
+            this.disguiselib$q.clear();
+        }
     }
 
     public void disguiselib$onClientBrand() {

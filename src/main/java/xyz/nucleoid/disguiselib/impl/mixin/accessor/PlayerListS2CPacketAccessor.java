@@ -12,6 +12,7 @@ public interface PlayerListS2CPacketAccessor {
     @Mutable
     @Accessor("entries")
     void setEntries(List<PlayerListS2CPacket.Entry> entries);
+
     @Accessor("entries")
     List<PlayerListS2CPacket.Entry> getEntries();
 }

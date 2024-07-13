@@ -9,20 +9,20 @@ import static org.apache.logging.log4j.LogManager.getLogger;
 
 public class DisguiseLib {
 
-	/**
-	 * Disables collisions with disguised entities.
-	 * (Client predictions are horrible sometimes ... )
-	 */
-	public static final Team DISGUISE_TEAM = new Team(new Scoreboard(), "");
+    /**
+     * Disables collisions with disguised entities.
+     * (Client predictions are horrible sometimes ... )
+     */
+    public static final Team DISGUISE_TEAM = new Team(new Scoreboard(), "");
 
-	public static void init() {
-		DISGUISE_TEAM.setCollisionRule(AbstractTeam.CollisionRule.PUSH_OTHER_TEAMS);
-		getLogger("DisguiseLib").info("DisguiseLib loaded.");
+    public static void init() {
+        DISGUISE_TEAM.setCollisionRule(AbstractTeam.CollisionRule.PUSH_OTHER_TEAMS);
+        getLogger("DisguiseLib").info("DisguiseLib loaded.");
 
-		CommandRegistrationCallback.EVENT.register(DisguiseCommand::register);
-	}
+        CommandRegistrationCallback.EVENT.register(DisguiseCommand::register);
+    }
 
-	public static void setPlayerClientVisibility(boolean clientVisibility) {
-		DISGUISE_TEAM.setShowFriendlyInvisibles(clientVisibility);
-	}
+    public static void setPlayerClientVisibility(boolean clientVisibility) {
+        DISGUISE_TEAM.setShowFriendlyInvisibles(clientVisibility);
+    }
 }
